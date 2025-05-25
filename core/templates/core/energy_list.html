@@ -2,18 +2,154 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Список енергетичних даних</title>
+    <title>Список енергетичних даних (DK_1)</title>
     <style>
         body { font-family: sans-serif; margin: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
+        .nav-links a { margin-right: 15px; text-decoration: none; color: #007bff; }
+        .nav-links a:hover { text-decoration: underline; }
+
+        /* Стилі для фільтрів в рядок */
+        .filter-form {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            /* display: flex;  -- Цей display тепер застосовуємо до form */
+            /* flex-wrap: wrap; */
+            /* gap: 15px; */
+            /* align-items: flex-end; */
+        }
+        .filter-form form { /* !!! ЦЕ ВАЖЛИВА ЗМІНА: Застосовуємо flex до самої форми !!! */
+            display: flex;
+            flex-wrap: wrap; /* Дозволяє елементам форми переноситися на наступний рядок */
+            gap: 15px; /* Простір між елементами форми */
+            align-items: flex-end; /* Вирівнює елементи форми по нижньому краю */
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column; /* Елементи всередині групи (label, input) розташовуємо в стовпчик */
+        }
+        .filter-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+            white-space: nowrap; /* Запобігає переносу тексту мітки */
+        }
+        .filter-group input, .filter-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+            min-width: 120px; /* Мінімальна ширина для інпутів */
+        }
+        .filter-group button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            white-space: nowrap; /* Запобігає переносу тексту кнопки */
+        }
+        .filter-group button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Стилі для пагінації (залишаються незмінними) */
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination a, .pagination span {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 0 4px;
+            border: 1px solid #ddd;
+            text-decoration: none;
+            color: #333;
+            border-radius: 4px;
+        }
+        .pagination a:hover {
+            background-color: #f2f2f2;
+        }
+        .pagination .current {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .pagination .disabled {
+            color: #ccc;
+            pointer-events: none;
+            border-color: #eee;
+        }
+        .pagination .dots {
+            padding: 8px 12px;
+            margin: 0 4px;
+            color: #777;
+        }
     </style>
 </head>
 <body>
-    <h1>Останні енергетичні дані</h1>
-    <p><a href="{% url 'index' %}">На головну</a></p>
-    <p><a href="{% url 'energy_dashboard' %}">Перейти до панелі візуалізації</a></p>
+    <h1>Список енергетичних даних (DK_1)</h1>
+    <div class="nav-links">
+        <p><a href="{% url 'index' %}">На головну</a></p>
+        <p><a href="{% url 'energy_dashboard' %}">Перейти до панелі візуалізації</a></p>
+    </div>
+
+    <div class="filter-form">
+        <form method="get"> {# <--- ТУТ ТЕПЕР ФОРМА БУДЕ FLEX-КОНТЕЙНЕРОМ #}
+            <div class="filter-group">
+                <label for="start_date">Дата від:</label>
+                <input type="date" id="start_date" name="start_date" value="{{ filters.start_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="end_date">Дата до:</label>
+                <input type="date" id="end_date" name="end_date" value="{{ filters.end_date }}">
+            </div>
+            <div class="filter-group">
+                <label for="min_price">Мін. ціна:</label>
+                <input type="number" step="0.01" id="min_price" name="min_price" value="{{ filters.min_price }}">
+            </div>
+            <div class="filter-group">
+                <label for="max_price">Макс. ціна:</label>
+                <input type="number" step="0.01" id="max_price" name="max_price" value="{{ filters.max_price }}">
+            </div>
+            <div class="filter-group">
+                <label for="min_temp">Мін. темп. (°C):</label>
+                <input type="number" step="0.1" id="min_temp" name="min_temp" value="{{ filters.min_temp }}">
+            </div>
+            <div class="filter-group">
+                <label for="max_temp">Макс. темп. (°C):</label>
+                <input type="number" step="0.1" id="max_temp" name="max_temp" value="{{ filters.max_temp }}">
+            </div>
+            <div class="filter-group">
+                <label for="sort_by">Сортувати за:</label>
+                <select id="sort_by" name="sort_by">
+                    <option value="-timestamp" {% if filters.sort_by == "-timestamp" %}selected{% endif %}>Час (спадання)</option>
+                    <option value="timestamp" {% if filters.sort_by == "timestamp" %}selected{% endif %}>Час (зростання)</option>
+                    <option value="-price" {% if filters.sort_by == "-price" %}selected{% endif %}>Ціна (спадання)</option>
+                    <option value="price" {% if filters.sort_by == "price" %}selected{% endif %}>Ціна (зростання)</option>
+                    <option value="-demand" {% if filters.sort_by == "-demand" %}selected{% endif %}>Попит (спадання)</option>
+                    <option value="demand" {% if filters.sort_by == "demand" %}selected{% endif %}>Попит (зростання)</option>
+                    <option value="-temperature" {% if filters.sort_by == "-temperature" %}selected{% endif %}>Температура (спадання)</option>
+                    <option value="temperature" {% if filters.sort_by == "temperature" %}selected{% endif %}>Температура (зростання)</option>
+                    <option value="-wind_generation" {% if filters.sort_by == "-wind_generation" %}selected{% endif %}>Вітер (спадання)</option>
+                    <option value="wind_generation" {% if filters.sort_by == "wind_generation" %}selected{% endif %}>Вітер (зростання)</option>
+                    <option value="-solar_generation" {% if filters.sort_by == "-solar_generation" %}selected{% endif %}>Сонце (спадання)</option>
+                    <option value="solar_generation" {% if filters.sort_by == "solar_generation" %}selected{% endif %}>Сонце (зростання)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button type="submit">Застосувати фільтри</button>
+            </div>
+        </form>
+    </div>
+
     <table>
         <thead>
             <tr>
@@ -21,28 +157,71 @@
                 <th>Ціна (EUR/MWh)</th>
                 <th>Попит (MW)</th>
                 <th>Пропозиція (MW)</th>
-                <th>Температура</th>
-                <th>Генерація вітру (MW)</th>
-                <th>Генерація сонця (MW)</th>
+                <th>Температура (°C)</th>
+                <th>Вітер (MW)</th>
+                <th>Сонце (MW)</th>
+                <th>Радіація пряма (W/m²)</th>
+                <th>Радіація дифузна (W/m²)</th>
             </tr>
         </thead>
         <tbody>
-            {% for data in energy_data %}
+            {% for data in page_obj %} {# Ітеруємо по page_obj #}
             <tr>
                 <td>{{ data.timestamp|date:"Y-m-d H:i" }}</td>
                 <td>{{ data.price|floatformat:2 }}</td>
                 <td>{{ data.demand|floatformat:2 }}</td>
-                <td>{{ data.supply|floatformat:2 }}</td>
-                <td>{{ data.temperature|floatformat:2 }}</td>
-                <td>{{ data.wind_generation|floatformat:2 }}</td>
-                <td>{{ data.solar_generation|floatformat:2 }}</td>
+                <td>{{ data.supply|default_if_none:"N/A"|floatformat:2 }}</td>
+                <td>{{ data.temperature|default_if_none:"N/A"|floatformat:2 }}</td>
+                <td>{{ data.wind_generation|default_if_none:"N/A"|floatformat:2 }}</td>
+                <td>{{ data.solar_generation|default_if_none:"N/A"|floatformat:2 }}</td>
+                <td>{{ data.radiation_direct_horizontal|default_if_none:"N/A"|floatformat:2 }}</td>
+                <td>{{ data.radiation_diffuse_horizontal|default_if_none:"N/A"|floatformat:2 }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7">Дані відсутні. Спробуйте запустити команду 'fetch_energy_data'.</td>
+                <td colspan="9">Дані відсутні або не відповідають фільтрам.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <div class="pagination">
+        {# Кнопка "Перша" #}
+        {% if page_obj.number > 1 %}
+            <a href="?page=1{% if query_string %}&{{ query_string }}{% endif %}">Перша</a>
+        {% else %}
+            <span class="disabled">Перша</span>
+        {% endif %}
+
+        {# Кнопка "Попередня" #}
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Попередня</a>
+        {% else %}
+            <span class="disabled">Попередня</span>
+        {% endif %}
+
+        {# Номери сторінок (з "...") #}
+        {% for i in page_range_elided %}
+            {% if i == '...' %}
+                <span class="dots">...</span>
+            {% else %}
+                <a href="?page={{ i }}{% if query_string %}&{{ query_string }}{% endif %}" {% if page_obj.number == i %}class="current"{% endif %}>{{ i }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {# Кнопка "Наступна" #}
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Наступна</a>
+        {% else %}
+            <span class="disabled">Наступна</span>
+        {% endif %}
+
+        {# Кнопка "Остання" #}
+        {% if page_obj.number < page_obj.paginator.num_pages %}
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if query_string %}&{{ query_string }}{% endif %}">Остання</a>
+        {% else %}
+            <span class="disabled">Остання</span>
+        {% endif %}
+    </div>
 </body>
 </html>

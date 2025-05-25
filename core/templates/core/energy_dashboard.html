@@ -2,20 +2,136 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Панель візуалізації енергії</title>
+    <title>Панель візуалізації енергії (DK_1)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: sans-serif; margin: 20px; }
+        .nav-links a { margin-right: 15px; text-decoration: none; color: #007bff; }
+        .nav-links a:hover { text-decoration: underline; }
         .chart-container {
-            width: 80%;
+            width: 90%;
+            max-width: 1200px;
             margin: 40px auto;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #fff;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Стилі для форми фільтрів на дашборді */
+        .dashboard-filter-form {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        .dashboard-filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .dashboard-filter-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .dashboard-filter-group input, .dashboard-filter-group button {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .dashboard-filter-group button {
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+        .dashboard-filter-group button:hover {
+            background-color: #218838;
+        }
+        .recommendations {
+            margin-top: 50px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background-color: #f0f8ff;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .recommendations h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+        }
+        .daily-recommendations {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .daily-recommendations:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .daily-recommendations h3 {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .daily-recommendations ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .daily-recommendations li {
+            background-color: #e9f5ff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #333;
+        }
+        .no-recommendations {
+            text-align: center;
+            font-style: italic;
+            color: #777;
         }
     </style>
 </head>
 <body>
-    <h1>Інтерактивна панель цін на електроенергію</h1>
-    <p><a href="{% url 'index' %}">На головну</a></p>
-    <p><a href="{% url 'energy_list' %}">Перейти до списку даних</a></p>
+    <h1>Інтерактивна панель цін на електроенергію (DK_1)</h1>
+    <div class="nav-links">
+        <p><a href="{% url 'index' %}">На головну</a></p>
+        <p><a href="{% url 'energy_list' %}">Перейти до списку даних</a></p>
+    </div>
+
+    <div class="dashboard-filter-form">
+        <form method="get">
+            <div class="dashboard-filter-group">
+                <label for="dashboard_start_date">Дата від:</label>
+                <input type="date" id="dashboard_start_date" name="start_date" value="{{ dashboard_filters.start_date }}">
+            </div>
+            <div class="dashboard-filter-group">
+                <label for="dashboard_end_date">Дата до:</label>
+                <input type="date" id="dashboard_end_date" name="end_date" value="{{ dashboard_filters.end_date }}">
+            </div>
+            <div class="dashboard-filter-group">
+                <button type="submit">Фільтрувати графіки</button>
+            </div>
+        </form>
+    </div>
+
+    <p style="text-align: center; font-style: italic;">Відображення даних за період: <strong>{{ data_period_info }}</strong></p>
 
     <div class="chart-container">
         <canvas id="priceChart"></canvas>
@@ -23,41 +139,109 @@
     <div class="chart-container">
         <canvas id="demandSupplyChart"></canvas>
     </div>
+    <div class="chart-container">
+        <canvas id="generationChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="weatherChart"></canvas>
+    </div>
+
+    <div class="recommendations">
+        <h2>Рекомендації для торгівлі електроенергією</h2>
+        {% if recommendations %}
+            {% for daily_rec in recommendations %}
+            <div class="daily-recommendations">
+                <h3>{{ daily_rec.day }}</h3>
+                <ul>
+                    {% for rec_item in daily_rec.recs %}
+                    <li>{{ rec_item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-recommendations">Рекомендації відсутні для обраного періоду. Будь ласка, запустіть команду 'train_predict_model'.</p>
+        {% endif %}
+    </div>
+
 
     <script>
         const labels = JSON.parse('{{ labels|escapejs }}');
-        const prices = JSON.parse('{{ prices|escapejs }}');
+        const prices_actual = JSON.parse('{{ prices_actual|escapejs }}');
+        const prices_predicted = JSON.parse('{{ prices_predicted|escapejs }}');
         const demand = JSON.parse('{{ demand|escapejs }}');
         const supply = JSON.parse('{{ supply|escapejs }}');
+        const wind_gen = JSON.parse('{{ wind_gen|escapejs }}');
+        const solar_gen = JSON.parse('{{ solar_gen|escapejs }}');
+        const temperature = JSON.parse('{{ temperature|escapejs }}');
+        const rad_direct = JSON.parse('{{ rad_direct|escapejs }}');
+        const rad_diffuse = JSON.parse('{{ rad_diffuse|escapejs }}');
 
-        // Графік цін
+        // Глобальні налаштування для Chart.js, щоб зменшити деталізацію точок
+        const commonChartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Час'
+                    },
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: 20
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    radius: 0
+                },
+                line: {
+                    tension: 0.1
+                }
+            },
+            animation: false
+        };
+
+
+        // Графік цін (з фактичними та прогнозованими цінами)
         new Chart(document.getElementById('priceChart'), {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Ціна (EUR/MWh)',
-                    data: prices,
-                    borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1,
-                    fill: false
-                }]
+                datasets: [
+                    {
+                        label: 'Ціна (Фактична, EUR/MWh)',
+                        data: prices_actual,
+                        borderColor: 'rgb(75, 192, 192)',
+                        fill: false
+                    },
+                    {
+                        label: 'Ціна (Прогнозована, EUR/MWh)',
+                        data: prices_predicted,
+                        borderColor: 'rgb(255, 99, 132)', // Червоний для прогнозу
+                        borderDash: [5, 5], // Пунктирна лінія
+                        fill: false
+                    }
+                ]
             },
             options: {
-                responsive: true,
+                ...commonChartOptions,
                 plugins: {
+                    ...commonChartOptions.plugins,
                     title: {
                         display: true,
-                        text: 'Зміна цін на електроенергію'
+                        text: 'Зміна цін на електроенергію (DK_1)'
                     }
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Час'
-                        }
-                    },
+                    ...commonChartOptions.scales,
                     y: {
                         title: {
                             display: true,
@@ -68,7 +252,7 @@
             }
         });
 
-        // Графік попиту та пропозиції
+        // Графік попиту та пропозиції (залишається незмінним)
         new Chart(document.getElementById('demandSupplyChart'), {
             type: 'line',
             data: {
@@ -78,37 +262,138 @@
                         label: 'Попит (MW)',
                         data: demand,
                         borderColor: 'rgb(255, 99, 132)',
-                        tension: 0.1,
                         fill: false
                     },
                     {
                         label: 'Пропозиція (MW)',
                         data: supply,
                         borderColor: 'rgb(54, 162, 235)',
-                        tension: 0.1,
                         fill: false
                     }
                 ]
             },
             options: {
-                responsive: true,
+                ...commonChartOptions,
                 plugins: {
+                    ...commonChartOptions.plugins,
                     title: {
                         display: true,
-                        text: 'Попит та пропозиція електроенергії'
+                        text: 'Попит та пропозиція електроенергії (DK_1)'
                     }
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Час'
-                        }
-                    },
+                    ...commonChartOptions.scales,
                     y: {
                         title: {
                             display: true,
                             text: 'Потужність (MW)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Графік генерації вітру та сонця (залишається незмінним)
+        new Chart(document.getElementById('generationChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Генерація вітру (MW)',
+                        data: wind_gen,
+                        borderColor: 'rgb(153, 102, 255)',
+                        fill: false
+                    },
+                    {
+                        label: 'Генерація сонця (MW)',
+                        data: solar_gen,
+                        borderColor: 'rgb(255, 205, 86)',
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                ...commonChartOptions,
+                plugins: {
+                    ...commonChartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Генерація електроенергії (Вітер та Сонце) (DK_1)'
+                    }
+                },
+                scales: {
+                    ...commonChartOptions.scales,
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Потужність (MW)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Графік погодних умов (Температура та Радіація) (залишається незмінним)
+        new Chart(document.getElementById('weatherChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Температура (°C)',
+                        data: temperature,
+                        borderColor: 'rgb(201, 203, 207)',
+                        backgroundColor: 'rgba(201, 203, 207, 0.2)',
+                        fill: false,
+                        yAxisID: 'yTemp'
+                    },
+                    {
+                        label: 'Пряма радіація (W/m²)',
+                        data: rad_direct,
+                        borderColor: 'rgb(54, 162, 235)',
+                        fill: false,
+                        yAxisID: 'yRad'
+                    },
+                    {
+                        label: 'Дифузна радіація (W/m²)',
+                        data: rad_diffuse,
+                        borderColor: 'rgb(255, 159, 64)',
+                        fill: false,
+                        yAxisID: 'yRad'
+                    }
+                ]
+            },
+            options: {
+                ...commonChartOptions,
+                plugins: {
+                    ...commonChartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Погодні умови (Температура та Радіація) (DK_1)'
+                    }
+                },
+                scales: {
+                    ...commonChartOptions.scales,
+                    yTemp: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Температура (°C)'
+                        }
+                    },
+                    yRad: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Радіація (W/m²)'
+                        },
+                        grid: {
+                            drawOnChartArea: false
                         }
                     }
                 }
