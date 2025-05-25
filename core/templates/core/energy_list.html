@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Список енергетичних даних</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Останні енергетичні дані</h1>
+    <p><a href="{% url 'index' %}">На головну</a></p>
+    <p><a href="{% url 'energy_dashboard' %}">Перейти до панелі візуалізації</a></p>
+    <table>
+        <thead>
+            <tr>
+                <th>Час</th>
+                <th>Ціна (EUR/MWh)</th>
+                <th>Попит (MW)</th>
+                <th>Пропозиція (MW)</th>
+                <th>Температура</th>
+                <th>Генерація вітру (MW)</th>
+                <th>Генерація сонця (MW)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in energy_data %}
+            <tr>
+                <td>{{ data.timestamp|date:"Y-m-d H:i" }}</td>
+                <td>{{ data.price|floatformat:2 }}</td>
+                <td>{{ data.demand|floatformat:2 }}</td>
+                <td>{{ data.supply|floatformat:2 }}</td>
+                <td>{{ data.temperature|floatformat:2 }}</td>
+                <td>{{ data.wind_generation|floatformat:2 }}</td>
+                <td>{{ data.solar_generation|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">Дані відсутні. Спробуйте запустити команду 'fetch_energy_data'.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

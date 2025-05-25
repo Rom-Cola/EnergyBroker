@@ -1,0 +1,22 @@
+# Python
+*.pyc
+__pycache__/
+.Python
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+
+# Django
+*.log
+*.sqlite3
+media/
+static_collected/
+
+# IDEs
+.idea/
+.vscode/
+.DS_Store

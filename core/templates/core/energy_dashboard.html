@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель візуалізації енергії</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .chart-container {
+            width: 80%;
+            margin: 40px auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Інтерактивна панель цін на електроенергію</h1>
+    <p><a href="{% url 'index' %}">На головну</a></p>
+    <p><a href="{% url 'energy_list' %}">Перейти до списку даних</a></p>
+
+    <div class="chart-container">
+        <canvas id="priceChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="demandSupplyChart"></canvas>
+    </div>
+
+    <script>
+        const labels = JSON.parse('{{ labels|escapejs }}');
+        const prices = JSON.parse('{{ prices|escapejs }}');
+        const demand = JSON.parse('{{ demand|escapejs }}');
+        const supply = JSON.parse('{{ supply|escapejs }}');
+
+        // Графік цін
+        new Chart(document.getElementById('priceChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ціна (EUR/MWh)',
+                    data: prices,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Зміна цін на електроенергію'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Час'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Ціна'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Графік попиту та пропозиції
+        new Chart(document.getElementById('demandSupplyChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Попит (MW)',
+                        data: demand,
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Пропозиція (MW)',
+                        data: supply,
+                        borderColor: 'rgb(54, 162, 235)',
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Попит та пропозиція електроенергії'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Час'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Потужність (MW)'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
